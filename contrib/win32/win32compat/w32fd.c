@@ -942,6 +942,12 @@ dup_handle(int fd)
 	else {
 		HANDLE dup_handle;
 		if (!DuplicateHandle(GetCurrentProcess(), h, GetCurrentProcess(), &dup_handle, 0, TRUE, DUPLICATE_SAME_ACCESS)) {
+#ifdef __NT31_SDK__
+			/* a console handle of a process without console */
+			SECURITY_ATTRIBUTES inherit = { sizeof(inherit), NULL, TRUE };
+			return CreateFileW(L"NUL", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+			    &inherit, OPEN_EXISTING, 0, NULL);
+#endif
 			errno = EOTHER;
 			error("dup - ERROR: DuplicatedHandle() :%d", GetLastError());
 		}
@@ -1121,6 +1127,9 @@ spawn_child_internal(const char* cmd, char *const argv[], HANDLE in, HANDLE out,
 			CloseHandle(pi.hProcess);
 			goto cleanup;
 		}
+#ifdef __NT31_SDK__
+		nt31_job_add(pi.hProcess);
+#endif
 		CloseHandle(pi.hThread);
 		ret = pi.dwProcessId;
 	}

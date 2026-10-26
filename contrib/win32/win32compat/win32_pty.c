@@ -123,6 +123,12 @@ int exec_command_with_pty(int * pid, char* cmd, int in, int out, int err, unsign
 	}
 
 	flags = CREATE_NO_WINDOW;
+#ifdef __NT31_SDK__
+	/* the pseudo terminal is a console that is not shown */
+	flags = CREATE_NEW_CONSOLE;
+	si.dwFlags |= STARTF_USESHOWWINDOW;
+	si.wShowWindow = SW_HIDE;
+#endif
 	debug3("pty commandline: %ls", pty_cmdline);
 	if (CreateProcessW(NULL, pty_cmdline, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pi)) {
 		if (register_child(pi.hProcess, pi.dwProcessId) == -1) {

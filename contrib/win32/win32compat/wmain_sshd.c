@@ -279,7 +279,13 @@ int scm_start_service(DWORD num, LPWSTR* args) {
 	ZeroMemory(&service_status, sizeof(service_status));
 	service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
 	ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 300);
+#ifdef __NT31_SDK__
+	/* the first start makes the host keys: longer than the service controller waits on a slow computer */
+	ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
+	prereq_setup();
+#else
 	prereq_setup();
 	ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
+#endif
 	return sshd_main(argc_original, wargv_original);
 }

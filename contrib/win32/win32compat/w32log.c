@@ -36,7 +36,9 @@
 #include "inc\syslog.h"
 #include "misc_internal.h"
 #include "inc\utf.h"
+#ifndef __NT31_SDK__
 #include "openssh-events.h"
+#endif
 
 #define MSGBUFSIZ 1024
 static int logfd = -1;
@@ -44,6 +46,22 @@ static int sftp_server_logfd = -1;
 const char* identity = NULL;
 int log_facility = 0;
 
+#ifdef __NT31_SDK__
+/* No event tracing on Windows NT 3.x: all messages go to the log file. */
+void openlog_file();
+void syslog_file(int priority, const char *format, const char *formatBuffer);
+
+void openlog_etw()
+{
+	openlog_file();
+}
+
+void
+syslog_etw(int priority, const char *format, const char *formatBuffer)
+{
+	syslog_file(priority, format, formatBuffer);
+}
+#else
 void openlog_etw()
 {
 	EventRegisterOpenSSH();
@@ -86,6 +104,8 @@ done:
 		free(w_payload);
 }
 
+
+#endif /* __NT31_SDK__ */
 
 /*
  * log file location will be - "%programData%\\openssh\\logs\\<module_name>.log"

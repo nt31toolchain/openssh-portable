@@ -229,6 +229,16 @@ get_passwd(const wchar_t * user_utf16, PSID sid)
 	WCHAR user_name[UNLEN + 1];
 	DWORD user_name_length = ARRAYSIZE(user_name);
 	domain_name_size = DNLEN + 1;
+#ifdef __NT31_SDK__
+	/* the name lookup of this system does not give the system account as a user */
+	const SID_IDENTIFIER_AUTHORITY system_authority = SECURITY_NT_AUTHORITY;
+	if (memcmp(&system_authority, GetSidIdentifierAuthority((PSID)binary_sid), sizeof(system_authority)) == 0 &&
+	    ((SID*)binary_sid)->SubAuthority[0] == SECURITY_LOCAL_SYSTEM_RID) {
+		wcscpy_s(user_name, ARRAYSIZE(user_name), L"SYSTEM");
+		wcscpy_s(domain_name, ARRAYSIZE(domain_name), L"NT AUTHORITY");
+		account_type = SidTypeUser;
+	} else
+#endif
 	if (LookupAccountSidW(NULL, binary_sid, user_name, &user_name_length,
 	    domain_name, &domain_name_size, &account_type) == 0) {
 		errno = errno_from_Win32LastError();
@@ -264,11 +274,16 @@ get_passwd(const wchar_t * user_utf16, PSID sid)
 		swprintf_s(user_resolved, ARRAYSIZE(user_resolved), L"%s\\%s", domain_name, user_name);
 
 	/* if one of below fails, set profile path to Windows directory */
+#ifdef __NT31_SDK__
+	/* no user profiles on Windows NT 3.x: the home directory of the account */
+	if (nt31_home_directory(user_name, domain_name, profile_home_exp, PATH_MAX) != 0)
+#else
 	if (swprintf_s(reg_path, PATH_MAX, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\%ls", sid_string) == -1 ||
 	    RegOpenKeyExW(HKEY_LOCAL_MACHINE, reg_path, 0, STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_WOW64_64KEY, &reg_key) != 0 ||
 	    RegQueryValueExW(reg_key, L"ProfileImagePath", 0, NULL, (LPBYTE)profile_home, &reg_path_len) != 0 ||
 	    ExpandEnvironmentStringsW(profile_home, NULL, 0) > PATH_MAX ||
 	    ExpandEnvironmentStringsW(profile_home, profile_home_exp, PATH_MAX) == 0)
+#endif
 		if (GetWindowsDirectoryW(profile_home_exp, PATH_MAX) == 0) {
 			debug3("GetWindowsDirectoryW failed with %d", GetLastError());
 			errno = EOTHER;

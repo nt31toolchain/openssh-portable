@@ -610,9 +610,16 @@ unix_time_to_file_time(ULONG t, LPFILETIME pft)
 void
 file_time_to_unix_time(const LPFILETIME pft, time_t * winTime)
 {
+#ifdef __NT31_SDK__
+	/* time_t of this C runtime has 32 bits */
+	long long file_time = ((long long)pft->dwHighDateTime << 32) + pft->dwLowDateTime;
+
+	*winTime = (time_t)((file_time - EPOCH_DELTA) / RATE_DIFF);
+#else
 	*winTime = ((long long)pft->dwHighDateTime << 32) + pft->dwLowDateTime;
 	*winTime -= EPOCH_DELTA;
 	*winTime /= RATE_DIFF;		 /* Nano to seconds resolution */
+#endif
 }
 
 static BOOL

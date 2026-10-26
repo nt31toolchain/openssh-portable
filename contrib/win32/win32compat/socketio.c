@@ -110,6 +110,15 @@ socketio_acceptEx(struct w32_io* pio)
 	debug5("acceptEx - io:%p", pio);
 	context = (struct acceptEx_context *)pio->internal.context;
 	ResetEvent(pio->read_overlapped.hEvent);
+#ifdef __NT31_SDK__
+	/* no AcceptEx: the event tells that accept() will not block */
+	if (nt31_accept_wait(pio->sock, pio->read_overlapped.hEvent) != 0) {
+		errno = ENOMEM;
+		return -1;
+	}
+	pio->read_details.pending = TRUE;
+	return 0;
+#endif
 
 	if (getsockname(pio->sock, (struct sockaddr*)&addr, &addrlen) == SOCKET_ERROR) {
 		errno = errno_from_WSALastError();
@@ -313,6 +322,7 @@ socketio_listen(struct w32_io* pio, int backlog)
 			return -1;
 		}
 		memset(context, 0, sizeof(struct acceptEx_context));
+#ifndef __NT31_SDK__
 		if (SOCKET_ERROR == WSAIoctl(pio->sock,
 			SIO_GET_EXTENSION_FUNCTION_POINTER,
 			&GuidAcceptEx, sizeof(GuidAcceptEx),
@@ -334,6 +344,7 @@ socketio_listen(struct w32_io* pio, int backlog)
 			debug3("listen - Ioctl2 ERROR:%d, io:%p", WSAGetLastError(), pio);
 			return -1;
 		}
+#endif
 
 		pio->read_overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 		if ((pio->read_overlapped.hEvent) == NULL) {
@@ -708,12 +719,21 @@ socketio_accept(struct w32_io* pio, struct sockaddr* addr, int* addrlen)
 		goto on_error;
 	}
 
+#ifdef __NT31_SDK__
+	context->accept_socket = accept(pio->sock, NULL, NULL);
+	if (context->accept_socket == INVALID_SOCKET) {
+		errno = errno_from_WSALastError();
+		debug3("accept - ERROR: accept failed:%d, io:%p", WSAGetLastError(), pio);
+		goto on_error;
+	}
+#else
 	if (0 != setsockopt(context->accept_socket, SOL_SOCKET,
 		SO_UPDATE_ACCEPT_CONTEXT, (char*)&pio->sock, sizeof(pio->sock))) {
 		errno = errno_from_WSALastError();
 		debug3("accept - ERROR: setsockopt failed:%d, io:%p", WSAGetLastError(), pio);
 		goto on_error;
 	}
+#endif
 
 	accept_io = (struct w32_io*)malloc(sizeof(struct w32_io));
 	if (!accept_io) {
@@ -728,6 +748,11 @@ socketio_accept(struct w32_io* pio, struct sockaddr* addr, int* addrlen)
 	context->accept_socket = INVALID_SOCKET;
 	debug4("accept io:%p", accept_io);
 
+#ifdef __NT31_SDK__
+	if ((addr != NULL) && (addrlen != NULL))
+		getpeername(accept_io->sock, addr, addrlen);
+	return accept_io;
+#endif
 	if ((addr != NULL) && (addrlen != NULL)) {
 		context->lpfnGuidGetAcceptExSockaddrs(context->lpOutputBuf, 0,
 			sizeof(SOCKADDR_STORAGE) + 16,
@@ -918,6 +943,10 @@ socketio_is_io_available(struct w32_io* pio, BOOL rd)
 			}
 		}
 
+#ifdef __NT31_SDK__
+		if (sock_listening)
+			return WaitForSingleObject(overlapped->hEvent, 0) == WAIT_OBJECT_0;
+#endif
 		if (WSAGetOverlappedResult(pio->sock, overlapped, &numBytes, FALSE, &flags))
 			return TRUE;
 		else if (WSAGetLastError() != WSA_IO_INCOMPLETE) {

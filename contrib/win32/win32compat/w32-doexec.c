@@ -269,6 +269,10 @@ setup_session_env(struct ssh *ssh, Session* s)
 	}
 
 	setup_session_user_vars(pw_dir_w); /* setup user specific env variables */
+#ifdef __NT31_SDK__
+	/* the program directory is not in the PATH of the system */
+	nt31_prepend_path(__wprogdir);
+#endif
 
 	env = do_setup_env_proxy(ssh, s, s->pw->pw_shell);
 	while (env_name = env[i]) {

@@ -1386,6 +1386,9 @@ main(int ac, char **av)
 	sigset_t sigmask;
 	uint64_t timing_secret = 0;
 
+#ifdef __NT31_SDK__
+	nt31_end_jobs_at_exit();
+#endif
 	sigemptyset(&sigmask);
 	sigprocmask(SIG_SETMASK, &sigmask, NULL);
 
@@ -2046,6 +2049,11 @@ void
 cleanup_exit(int i)
 {
 	extern int auth_attempted; /* monitor.c */
+
+#ifdef __NT31_SDK__
+	/* no job objects: end the processes of the sessions here */
+	nt31_end_jobs();
+#endif
 
 	if (the_active_state != NULL && the_authctxt != NULL) {
 		do_cleanup(the_active_state, the_authctxt);

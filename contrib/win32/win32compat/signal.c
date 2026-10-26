@@ -168,7 +168,7 @@ w32_raise(int sig)
 {
 	debug4("raise sig:%d", sig);
 	if (sig == W32_SIGSEGV)
-		return raise(SIGSEGV); /* raise native exception handler*/
+		return raise(11 /* SIGSEGV of the C runtime */); /* raise native exception handler*/
 
 	if (sig >= W32_SIGMAX) {
 		errno = EINVAL;
