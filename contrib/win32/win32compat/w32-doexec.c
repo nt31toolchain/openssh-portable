@@ -530,6 +530,10 @@ int do_exec_windows(struct ssh *ssh, Session *s, const char *command, int pty) {
 		goto cleanup;
 	}
 	s->pid = pid;
+#ifdef __NT31_SDK__
+	/* before Windows 2000 the job does not end with its last handle */
+	nt31_session_job(job);
+#endif
 
 	/* Close the child sides of the socket pairs. */
 	close(pipein[0]);

@@ -1127,9 +1127,6 @@ spawn_child_internal(const char* cmd, char *const argv[], HANDLE in, HANDLE out,
 			CloseHandle(pi.hProcess);
 			goto cleanup;
 		}
-#ifdef __NT31_SDK__
-		nt31_job_add(pi.hProcess);
-#endif
 		CloseHandle(pi.hThread);
 		ret = pi.dwProcessId;
 	}

@@ -264,6 +264,10 @@ int wmain(int argc, wchar_t **wargv) {
 			free(path_value);
 	}
 
+#ifdef __NT31_SDK__
+	if (!nt31_can_be_service(argc))
+		return sshd_main(argc, wargv);
+#endif
 	if (!StartServiceCtrlDispatcherW(dispatch_table)) {
 		if (GetLastError() == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT)
 			return sshd_main(argc, wargv); /* sshd running NOT as service*/

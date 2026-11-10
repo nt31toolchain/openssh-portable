@@ -230,7 +230,7 @@ get_passwd(const wchar_t * user_utf16, PSID sid)
 	DWORD user_name_length = ARRAYSIZE(user_name);
 	domain_name_size = DNLEN + 1;
 #ifdef __NT31_SDK__
-	/* the name lookup of this system does not give the system account as a user */
+	/* the name lookup gives the system account as a well-known group; sshd, a service of this account, needs it as a user */
 	const SID_IDENTIFIER_AUTHORITY system_authority = SECURITY_NT_AUTHORITY;
 	if (memcmp(&system_authority, GetSidIdentifierAuthority((PSID)binary_sid), sizeof(system_authority)) == 0 &&
 	    ((SID*)binary_sid)->SubAuthority[0] == SECURITY_LOCAL_SYSTEM_RID) {
